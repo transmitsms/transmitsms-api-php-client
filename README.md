@@ -1,1 +1,0 @@
-# transmitsms-api-client-code
