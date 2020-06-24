@@ -11,12 +11,9 @@
 		
 		protected $responseStatus;
 		
-		private $encoding;
-		
-		public function __construct($key, $secret, $encoding='utf-8')
+		public function __construct($key, $secret)
 		{
 			$this->authHeader=array('Authorization: Basic '.base64_encode($key.':'.$secret));
-			$this->encoding=$encoding;
 		}
 		
 		protected function generateError($code, $description)
@@ -30,8 +27,6 @@
 		
 		protected function getRequestURL($method)
 		{
-			$params['encoding']=$this->encoding;
-			
 			return $this->url.'/'.$this->version.'/'.$method.'.json';
 		}
 		
@@ -47,10 +42,9 @@
 			$urlInfo = parse_url($requestUrl);
 			$port = (preg_match("/https|ssl/i", $urlInfo["scheme"])) ? 443 : 80;	
 			
-//			curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 			curl_setopt($ch, CURLOPT_POST, true);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
 			curl_setopt($ch, CURLOPT_USERAGENT, "transmitsmsAPI v." . $this->version);
 			curl_setopt($ch, CURLOPT_PORT, $port);
 			curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
@@ -82,7 +76,7 @@
 				$fieldIndex=1;
 				foreach($fields as $field)
 				{
-					$params["field.{$fieldIndex}"]=$field;
+					$params["field_{$fieldIndex}"]=$field;
 					$fieldIndex++;
 				}
 			}
@@ -91,7 +85,7 @@
 				// this is an associative array, we iterate and keep the indexes
 				foreach($fields as $fieldIndex=>$field)
 				{
-					$params["field.{$fieldIndex}"]=$field;
+					$params["field_{$fieldIndex}"]=$field;
 				}				
 			}	
 		}
@@ -115,38 +109,11 @@
 		 * @param string $dlr_callback
 		 * @param string $reply_callback
 		 * @param int $validity
-		 * @param string $replies_to_email
-		 * @param int $lookup_list_id
-         * @param array $response_options
-         * @param bool $from_shared
-         * @param string $countrycode
          *
 		 */
-		public function sendSms($message, $to='', $from='', $send_at='', $list_id=0, $dlr_callback='', $reply_callback='', $validity=0, $replies_to_email='', $lookup_list_id=0, $response_options=array(), $from_shared=false, $countrycode)
+		public function sendSms($message, $to='', $from='', $send_at='', $list_id=0, $dlr_callback='', $reply_callback='', $validity=0, $replies_to_email='', $tracked_link_url='')
 		{
 			$params = get_defined_vars();
-			return $this->handleResponse($this->request('send-sms', $params));			
-		}
-		
-		/**
-		 * Send SMS message, with a set of optional parameters as an array
-		 * @param string $message
-		 * @param array $params may contain some of the following keys: to, from, list_id, send_at, dlr_callback, validity, lookup_list_id, response_options, from_shared. please set legacy reply_callback an replies_to_email as pass_to_url and pass_to_email keys of response_options array accordingly.
-		 */
-		public function sendSmsArray($message, $params)
-		{
-			$params['message']=$message;
-			
-			// idk if this is an overkill...
-			$sendSms=new ReflectionMethod($this, 'sendSms');
-			$sendSmsParams=$sendSms->getParameters();
-			array_walk($sendSmsParams, function(&$value, $key){$value=$value->name;});
-			foreach ($params as $paramName=>$value) {
-				if(!in_array($paramName, $sendSmsParams))
-					return $this->generateError('FIELD_INVALID', "The '{$paramName}' parameter is not supported");
-			}
-			//
-			
 			return $this->handleResponse($this->request('send-sms', $params));
 		}
 		
@@ -160,19 +127,6 @@
 		{
 			$params = get_defined_vars();
 			return $this->handleResponse($this->request('get-sms', $params));
-		}
-
-		/**
-		 * Get SMS Stats
-		 *
-		 * @param int $message_id
-		 *
-		 */
-		public function getSmsStats($message_id)
-		{
-			$params = get_defined_vars();
-			$params['sms_id'] = $message_id;
-			return $this->handleResponse($this->request('get-sms-stats', $params));
 		}
 		
 		/**
@@ -230,15 +184,16 @@
 		 * 
 		 * @param datetime $start
 		 * @param datetime $end
+		 * @param string $msisdn
 		 * @param int $page
 		 * @param int $max
 		 * 
 		 */
-		public function getUserSmsSent($start=null, $end=null, $page=1, $max=10)
+		public function getUserSmsSent($start=null, $end=null, $msisdn='', $page=1, $max=10)
 		{
 			$params = get_defined_vars();
 			$this->prepareFieldsForEdit($params);
-			return $this->handleResponse($this->request('get-user-sms-sent', $params));			
+			return $this->handleResponse($this->request('get-user-sms-sent', $params));
 		}
 		
 		/**
@@ -268,19 +223,6 @@
 			$params = get_defined_vars();
 			return $this->handleResponse($this->request('get-list', $params));
 		}
-
-        /**
-		 * Remove a list.
-		 * 
-		 * @param int $list_id
-		 * 
-		 */
-		public function removeList($list_id)
-		{
-			$params = get_defined_vars();
-			return $this->handleResponse($this->request('remove-list', $params));
-		}
-
 		
 		/**
 		 * Get the metadata of your lists.
@@ -308,7 +250,19 @@
 			$this->indexCustomFields($params, $fields);
 			return $this->handleResponse($this->request('add-list', $params));
 		}
-		
+
+		/**
+		 * Delete a list and its members.
+		 *
+		 * @param integer $list_id
+		 *
+		 */
+		public function removeList($list_id)
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('remove-list', $params));
+		}
+
 		/**
 		 * Add a member to a list.
 		 * 
@@ -319,28 +273,12 @@
 		 * @param array $fields
 		 * 
 		 */
-		public function addToList($list_id, $msisdn, $first_name='', $last_name='', $fields=array())
+		public function addToList($list_id, $msisdn, $first_name='', $last_name='', $fields=array(), $countrycode=NULL)
 		{
 			$params=get_defined_vars();
 			unset($params['fields']);
 			$this->indexCustomFields($params, $fields);
-			return $this->handleResponse($this->request('add-to-list', $params));			
-		}
-
-		/**
-		 * Add custom fields to a list
-		 *
-		 * @param $list_id
-		 * @param array $fields
-		 * @return stdClass
-		 */
-		public function addFieldToList($list_id, $fields=array())
-		{
-			$params=get_defined_vars();
-			unset($params['fields']);
-			$params['list_id'] = $list_id;
-			$this->indexCustomFields($params, $fields);
-			return $this->handleResponse($this->request('add-field-to-list', $params));
+			return $this->handleResponse($this->request('add-to-list', $params));
 		}
 		
 		/**
@@ -421,12 +359,30 @@
 		 * @param string $number
 		 * 
 		 */
-		public function leaseNumber($number='', $response_options='')
+		public function leaseNumber($number='', $url='')
 		{
 			$params = get_defined_vars();
 			return $this->handleResponse($this->request('lease-number', $params));
 		}
-		
+
+		/**
+		 * Edit options of existing number.
+		 *
+		 * @param string $number
+		 * @param string $forward_email
+		 * @param string $forward_sms
+		 * @param string $forward_url
+		 * @param int $list_id
+		 * @param string $welcome_message
+		 * @param string $members_message
+		 *
+		 */
+		public function editNumberOptions($number, $forward_email='', $forward_sms='', $forward_url='', $list_id=0, $welcome_message='', $members_message='')
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('edit-number-options', $params));
+		}
+
 		/**
 		 * Get a client.
 		 * 
@@ -465,7 +421,7 @@
 		 * @param float $sms_margin
 		 * 
 		 */
-		public function addClient($name, $email, $password, $msisdn, $contact='', $timezone='', $client_pays=true, $sms_margin=0.0, $require_validation=false, $api_secret='', $dlr_callback='', $reply_callback='', $number_margin=0.0)
+		public function addClient($name, $email, $password, $msisdn, $contact='', $timezone='', $client_pays=true, $sms_margin=0.0)
 		{
 			$params = get_defined_vars();
 			return $this->handleResponse($this->request('add-client', $params));
@@ -531,7 +487,6 @@
 		public function editKeyword($keyword, $number, $reference=null, $list_id=null, $welcome_message=null, $members_message=null, $status=null, $forward_url=null, $forward_email=null, $forward_sms=null)
 		{
 			$params = get_defined_vars();
-			$this->prepareFieldsForEdit($params);
 			return $this->handleResponse($this->request('edit-keyword', $params));
 		}
 		
@@ -616,12 +571,95 @@
 			$params = get_defined_vars();
 			return $this->handleResponse($this->request('format-number', $params));
 		}
-		
-		public function setListCallback($list_id, $url)
+
+		/**
+		 * Add contacts in bulk
+		 * @param string $name
+		 * @param string $file_url
+		 * @param array $fields
+		 * @param string $countrycode
+		 * 
+		 */
+		public function addContactsBulk($name, $file_url, $fields = [], $countrycode = '')
 		{
 			$params = get_defined_vars();
-			return $this->handleResponse($this->request('set-list-callback', $params));
+			$this->indexCustomFields($params, $fields);
+			return $this->handleResponse($this->request('add-contacts-bulk', $params));
 		}
-		
+
+		/**
+		 * Check add contacts bulk progress
+		 * @param integer $list_id
+		 *
+		 */
+		public function addContactsBulkProgress($list_id)
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('add-contacts-bulk-progress', $params));
+		}
+
+		/**
+		 * Get contact details
+		 * @param integer $list_id
+		 * @param string $msisdn
+		 *
+		 */
+		public function getContact($list_id, $msisdn)
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('get-contact', $params));
+		}
+
+		/**
+		 * Get link hits report
+		 * @param integer $message_id
+		 * @param integer $page
+		 * @param integer $max
+		 * 
+		 */
+		public function getLinkHits($message_id, $page = 1, $max = 10)
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('get-link-hits', $params));
+		}
+
+		/**
+		 * Get sms delivery status
+		 * @param integer $message_id
+		 * @param string $msisdn
+		 *
+		 */
+		public function getSmsDeliveryStatus($message_id, $msisdn)
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('get-sms-delivery-status', $params));
+		}
+
+		/**
+		 * Add credit
+		 * @param float $amount
+		 * @param string $creditcard_id
+		 */
+		public function addCredit($amount = 0, $creditcard_id = '')
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('add-credit', $params));
+		}
+
+		/**
+		 * Add credit card
+		 * @param string $name
+		 * @param integer $number
+		 * @param integer $expiry_month
+		 * @param integer $expiry_year
+		 * @param integer $cvv
+		 */
+		public function addCard($name, $number, $expiry_month, $expiry_year, $cvv)
+		{
+			$params = get_defined_vars();
+			return $this->handleResponse($this->request('add-card', $params));
+		}
+
 	}
+
 ?>
