@@ -12,7 +12,7 @@ Add the following lines to your PHP script.
     
     $api = new transmitsmsAPI('API_KEY', 'API_SECRET');
 
-replace “API_KEY” and “API_SECRET” .. with your account credentials …
+replace `'API_KEY'` and `'API_SECRET'` with your account credentials.
 
 see examples folder for endpoint usage examples
 
