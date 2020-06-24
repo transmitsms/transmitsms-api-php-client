@@ -1,6 +1,6 @@
 <?php
-include '../../APIClient2.php';
-$ap i= new transmitsmsAPI('API_KEY','API_SECRET');
+include 'APIClient2.php';
+$api= new transmitsmsAPI('API_KEY','API_SECRET');
 
  //pause a keyword
  //$result = $api->editKeyword('KEYWORD', '6140000000', null, null, null, null, 'paused');

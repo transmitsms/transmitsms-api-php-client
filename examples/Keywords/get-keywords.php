@@ -1,5 +1,5 @@
 <?php
-include '../../APIClient2.php';
+include 'APIClient2.php';
 
 $api = new transmitsmsAPI('API_KEY', 'API_SECRET');
 $offset = 0;

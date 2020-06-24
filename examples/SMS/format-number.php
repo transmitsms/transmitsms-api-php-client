@@ -1,5 +1,5 @@
 <?php
-include '../../APIClient2.php';
+include 'APIClient2.php';
 
 $api = new transmitsmsAPI('API_KEY', 'API_SECRET');
 $result = $api->formatNumber('0455667889', 'AU');

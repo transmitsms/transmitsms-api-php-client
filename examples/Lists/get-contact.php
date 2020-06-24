@@ -1,5 +1,5 @@
 <?php
-include '../../APIClient2.php';
+include 'APIClient2.php';
 $api = new transmitsmsAPI('API_KEY', 'API_SECRET');
 $api->url = 'https://api.transmitsms.com/';
 

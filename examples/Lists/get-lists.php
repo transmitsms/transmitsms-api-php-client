@@ -1,5 +1,5 @@
 <?php
-include '../../APIClient2.php';
+include 'APIClient2.php';
 
 $api = new transmitsmsAPI('API_KEY', 'API_SECRET');
 $offset = 0;
@@ -11,7 +11,7 @@ if ($result->error->code == 'SUCCESS') {
     echo "There are {$result->lists_total} lists, 
       showing page {$result->page->number} of {$result->page->count} <hr>";
 
-    foreach ($result->listsas$list) {
+    foreach ($result->lists as $list) {
         echo "{$list->name} - {$list->members_total} total members <br>";
     }
 
